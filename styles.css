@@ -37,6 +37,15 @@ body {
   padding: 1rem 2rem 1.5rem;
 }
 
+.filters .toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  color: rgba(245, 247, 255, 0.7);
+}
+
 .filters label {
   flex: 1;
   font-size: 0.8rem;
@@ -55,6 +64,11 @@ body {
   background: transparent;
   color: #f5f5f7;
   padding: 0.6rem 0.75rem;
+}
+
+.filters .toggle input {
+  width: 1rem;
+  height: 1rem;
 }
 
 .filters input::placeholder {
@@ -90,16 +104,92 @@ main {
   flex-direction: column;
   gap: 0.5rem;
   min-height: 220px;
+  overflow: hidden;
+  position: relative;
+  max-height: 380px;
+}
+
+.film-thumb {
+  width: 100%;
+  height: 140px;
+  background: rgba(255, 255, 255, 0.05) center/cover;
+  border-radius: 0.5rem;
+  display: block;
+  background-size: cover;
+  background-position: center;
+  margin: -1rem -1rem 0;
+  position: relative;
+  z-index: 1;
+}
+
+.film-thumb.placeholder {
+  background-image: linear-gradient(135deg, rgba(99, 102, 241, 0.4), rgba(15, 23, 42, 0.4));
+}
+
+.film-thumb .winner-badge {
+  position: absolute;
+  top: 0.65rem;
+  left: 0.65rem;
+  font-size: 0.7rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.8);
+  color: #facc15;
+  border: 1px solid rgba(250, 204, 21, 0.6);
+  z-index: 3;
+}
+
+.winner-top {
+  padding: 0.2rem 0.65rem;
+  font-size: 0.65rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #facc15;
+  background: rgba(15, 23, 42, 0.85);
+  border-radius: 0.45rem 0.45rem 0 0;
+  border: 1px solid rgba(250, 204, 21, 0.6);
+  margin-bottom: -0.15rem;
+  position: relative;
+  z-index: 2;
 }
 
 .film-card h3 {
   margin: 0;
-  font-size: 1.1rem;
+  font-size: 1.25rem;
 }
 
-.film-card span {
+.film-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.film-meta {
+  display: flex;
+  gap: 0.75rem;
   font-size: 0.75rem;
   color: rgba(245, 247, 255, 0.6);
+}
+
+.film-people {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.film-actions {
+  margin-top: auto;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.film-actions a {
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #c7d2fe;
 }
 
 .nomination-list {
@@ -123,6 +213,17 @@ main {
   display: block;
   font-weight: 600;
   font-size: 0.75rem;
+}
+
+.winner-badge {
+  margin-left: 0.35rem;
+  font-size: 0.6rem;
+  border: 1px solid rgba(250, 204, 21, 0.6);
+  padding: 0.05rem 0.35rem;
+  border-radius: 999px;
+  color: #facc15;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
 }
 
 .person-chip {

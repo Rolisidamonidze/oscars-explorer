@@ -15,17 +15,21 @@
   <section class="filters">
     <label>
       Year
-      <select id="yearSelect"></select>
+      <select id="yearSelect"><option value="">All years</option></select>
     </label>
     <label>
       Category
       <select id="categorySelect">
-        <option value="">All</option>
+        <option value="">Best Picture</option>
       </select>
     </label>
     <label>
       Search
       <input id="searchInput" type="search" placeholder="film title, person, or category" />
+    </label>
+    <label class="toggle">
+      <input id="winnersOnly" type="checkbox" checked />
+      <span>Only winners</span>
     </label>
   </section>
 
