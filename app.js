@@ -127,17 +127,43 @@ async function renderFilms() {
     elements.filmList.innerHTML = `<p class="empty">No results.</p>`;
     return;
   }
-  const activeCategory = state.category || findBestPictureCategory();
+  const filterCategory = state.category || findBestPictureCategory();
+  const selectedCategory = state.category;
   elements.filmList.innerHTML = entries
     .map(({ film, yearLabel }) => {
       const key = getFilmKey(film, yearLabel);
       const wins = film.nominations.filter((nom) => nom.winner).length;
-      const hasCategoryWinner = activeCategory
-        ? film.nominations.some((nom) => nom.winner && nom.category === activeCategory)
+      const hasCategoryWinner = filterCategory
+        ? film.nominations.some((nom) => nom.winner && nom.category === filterCategory)
         : wins > 0;
       const winnerBadge = hasCategoryWinner
         ? `<span class="winner-badge">Winner</span>`
         : "";
+      const relevantNominations = film.nominations.filter((nom) => {
+        if (selectedCategory) {
+          return nom.category === selectedCategory && (!state.winnersOnly || nom.winner);
+        }
+        return nom.winner;
+      });
+      const detailLines = relevantNominations
+        .map((nom) => {
+          const persons = (nom.people || [])
+            .filter(Boolean)
+            .join(", ");
+          const statement = nom.nomination_statement || "";
+          const characters = Array.isArray(nom.characters) ? nom.characters.join(", ") : "";
+          const body = [];
+          if (persons) body.push(persons);
+          if (statement && statement !== persons) body.push(statement);
+          const note = characters ? ` (as ${characters})` : "";
+          if (!body.length) return "";
+          const label = selectedCategory ? "" : `${nom.category}: `;
+          return `<span class="film-detail-text">${label}${body.join(" — ")}${note}</span>`;
+        })
+        .filter(Boolean)
+        .slice(0, 2)
+        .join("");
+      const detailBlock = detailLines ? `<div class="film-detail-block">${detailLines}</div>` : "";
       return `
         <article class="film-card">
           <figure class="film-thumb" data-film-key="${key}" aria-hidden="true">
@@ -150,6 +176,7 @@ async function renderFilms() {
               <span>${wins} win${wins === 1 ? "" : "s"}</span>
               <span>${film.nominations.length} nominations</span>
             </div>
+            ${detailBlock}
           </div>
         </article>
       `;
