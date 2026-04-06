@@ -12,7 +12,7 @@
       <div>
         <p class="eyebrow">Archive · Reference · Story</p>
         <h1>Oscars Explorer</h1>
-        <p class="lead">Browse every nominee and winner by year, drill down by award category, and peek at the actors who brought the films to life.</p>
+        <p class="lead">Browse every nominee and winner by year, drill down by award category, and peek at the people who brought the films to life.</p>
       </div>
       <div class="stats" aria-live="polite">
         <p id="statYears"></p>
@@ -34,52 +34,16 @@
       </label>
       <label class="search-field">
         <span>Search</span>
-        <input id="searchInput" type="search" placeholder="Film title, people or category" />
+        <input id="searchInput" type="search" placeholder="Film title, people, or category" />
       </label>
     </section>
 
-    <section class="insights" aria-label="Film inspiration">
-      <article class="insight-card spotlight-card">
-        <div>
-          <p class="insight-label">Spotlight</p>
-          <h2 id="spotlightTitle">Pick a filter to highlight a nominee</h2>
-          <p id="spotlightMeta" class="insight-meta">The film with the most wins automatically rises to the top.</p>
-        </div>
-        <div id="spotlightBadges" class="insight-badges"></div>
-        <div class="insight-actions">
-          <a id="spotlightLink" class="link-button" href="#" target="_blank" rel="noreferrer">Awards page</a>
-          <button id="spotlightWatchlist" class="ghost-button" type="button" disabled>Add to watchlist</button>
-        </div>
-      </article>
-      <article class="insight-card random-card">
-        <div>
-          <p class="insight-label">Need a pick?</p>
-          <h3 id="randomTitle">Let the ceremony decide</h3>
-          <p id="randomMeta" class="insight-meta">Spin the wheel to spotlight another nominee.</p>
-        </div>
-        <button id="randomButton" class="primary-button" type="button">Pick something new</button>
-      </article>
-    </section>
-
-    <main class="content-shell">
-      <section class="film-area" aria-label="Oscars nominees">
-        <div class="section-heading">
-          <div>
-            <h2>Nominees</h2>
-            <p class="section-subtitle">Browse nominees for the <strong id="currentYearLabel">current ceremony</strong>.</p>
-          </div>
-        </div>
-        <div id="filmList" class="film-grid" aria-live="polite"></div>
-      </section>
-      <aside class="watchlist-panel" aria-label="Watchlist">
-        <div class="watchlist-card">
-          <div class="watchlist-heading">
-            <h2>Watchlist</h2>
-            <p class="section-subtitle">Pin ideas for your next movie night.</p>
-          </div>
-          <ul id="watchlistList" class="watchlist-list"></ul>
-        </div>
-      </aside>
+    <main class="film-area" aria-label="Oscars nominees">
+      <div class="section-heading">
+        <h2>Nominees</h2>
+        <p class="section-subtitle">Showing entries for <strong id="currentYearLabel">the current ceremony</strong>.</p>
+      </div>
+      <div id="filmList" class="film-grid" aria-live="polite"></div>
     </main>
   </div>
 

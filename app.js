@@ -3,10 +3,6 @@ const state = {
   year: null,
   category: "",
   search: "",
-  watchlist: new Map(),
-  filmIndex: new Map(),
-  spotlightEntry: null,
-  randomEntry: null,
 };
 
 const elements = {
@@ -17,15 +13,6 @@ const elements = {
   statsYears: document.getElementById("statYears"),
   statsFilms: document.getElementById("statFilms"),
   statsCategories: document.getElementById("statCategories"),
-  spotlightTitle: document.getElementById("spotlightTitle"),
-  spotlightMeta: document.getElementById("spotlightMeta"),
-  spotlightBadges: document.getElementById("spotlightBadges"),
-  spotlightLink: document.getElementById("spotlightLink"),
-  spotlightWatchlist: document.getElementById("spotlightWatchlist"),
-  randomTitle: document.getElementById("randomTitle"),
-  randomMeta: document.getElementById("randomMeta"),
-  randomButton: document.getElementById("randomButton"),
-  watchlistList: document.getElementById("watchlistList"),
   currentYearLabel: document.getElementById("currentYearLabel"),
   modal: document.getElementById("actorModal"),
   modalTitle: document.getElementById("actorModalTitle"),
@@ -38,13 +25,8 @@ const elements = {
 };
 
 const actorCache = new Map();
-
-function getFilmKey(film, yearNumber) {
-  const title = (film.film_title || "untitled").toLowerCase();
-  return `${yearNumber}-${title}`
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
+const filmImageCache = new Map();
+let modalRequest = null;
 
 async function fetchData() {
   elements.loading.classList.remove("hidden");
@@ -120,27 +102,17 @@ function renderFilms() {
   const films = filterFilms();
   const yearBlock = getCurrentYearBlock();
   elements.currentYearLabel.textContent = yearBlock.label;
-  state.filmIndex.clear();
-  state.randomEntry = null;
 
   if (!films.length) {
     elements.filmList.innerHTML = `<p class="muted">No films match the current filters.</p>`;
-    updateSpotlight([]);
-    updateRandomCard();
     return;
   }
 
-  const html = films
+  const filmEntries = [];
+  elements.filmList.innerHTML = films
     .map((film) => {
       const key = getFilmKey(film, yearBlock.award_show_number);
-      const entry = {
-        film,
-        yearLabel: yearBlock.label,
-        yearNumber: yearBlock.award_show_number,
-        key,
-      };
-      state.filmIndex.set(key, entry);
-
+      filmEntries.push({ film, key });
       const nominationItems = film.nominations
         .map((nom) => {
           const winnerLabel = nom.winner ? `<span class="winner">Winner</span>` : "";
@@ -159,36 +131,65 @@ function renderFilms() {
         })
         .join("");
 
-      const saved = state.watchlist.has(key);
-      const filmLink = film.film_link || "#";
-      const linkAttrs = film.film_link ? "" : 'aria-disabled="true" tabindex="-1"';
-
       return `
-        <article class="film-card">
-          <header class="film-card-header">
+        <article class="film-card" data-film-key="${key}">
+          <div class="film-thumb" aria-hidden="true"></div>
+          <div class="film-card-body">
             <div>
               <p class="film-year">${yearBlock.label}</p>
               <h3>${film.film_title || "Untitled"}</h3>
             </div>
-            <div class="film-card-actions">
-              <a class="link-button" href="${filmLink}" target="_blank" rel="noreferrer" ${linkAttrs}>Awards page</a>
-              <button class="watchlist-toggle${saved ? " saved" : ""}" data-film-key="${key}" type="button" aria-pressed="${saved}">${saved ? "Saved" : "Save"}</button>
+            <div class="film-meta">
+              ${film.production_companies ? `<span>${film.production_companies}</span>` : ""}
+              ${film.distributors ? `<span>${film.distributors}</span>` : ""}
             </div>
-          </header>
-          <div class="film-meta">
-            ${film.production_companies ? `<span>${film.production_companies}</span>` : ""}
-            ${film.distributors ? `<span>${film.distributors}</span>` : ""}
+            <ul class="nomination-list">${nominationItems}</ul>
           </div>
-          <ul class="nomination-list">${nominationItems}</ul>
         </article>
       `;
     })
     .join("");
 
-  elements.filmList.innerHTML = html;
   attachFilmInteractions();
-  updateSpotlight([...state.filmIndex.values()]);
-  updateRandomCard();
+  populateFilmImages(filmEntries);
+}
+
+function populateFilmImages(entries) {
+  entries.forEach(async ({ film, key }) => {
+    const title = film.film_title;
+    if (!title) return;
+    const imageUrl = await fetchFilmImage(title);
+    if (!imageUrl) return;
+    const container = document.querySelector(`[data-film-key="${key}"] .film-thumb`);
+    if (!container) return;
+    container.style.backgroundImage = `url(${imageUrl})`;
+    container.classList.add("has-image");
+  });
+}
+
+async function fetchFilmImage(title) {
+  const cacheKey = title.trim().toLowerCase();
+  if (filmImageCache.has(cacheKey)) {
+    return filmImageCache.get(cacheKey);
+  }
+
+  try {
+    const response = await fetch(
+      `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`,
+      { headers: { Accept: "application/json" } }
+    );
+    if (!response.ok) {
+      filmImageCache.set(cacheKey, null);
+      return null;
+    }
+    const payload = await response.json();
+    const imageUrl = payload.thumbnail?.source || null;
+    filmImageCache.set(cacheKey, imageUrl);
+    return imageUrl;
+  } catch {
+    filmImageCache.set(cacheKey, null);
+    return null;
+  }
 }
 
 function attachFilmInteractions() {
@@ -198,162 +199,6 @@ function attachFilmInteractions() {
       openActorModal(person);
     });
   });
-  document.querySelectorAll(".watchlist-toggle").forEach((button) => {
-    const key = button.dataset.filmKey;
-    button.addEventListener("click", () => {
-      const entry = state.filmIndex.get(key);
-      if (!entry) return;
-      toggleWatchlist(entry);
-    });
-  });
-  updateWatchlistButtons();
-}
-
-function toggleWatchlist(entry) {
-  if (state.watchlist.has(entry.key)) {
-    state.watchlist.delete(entry.key);
-  } else {
-    state.watchlist.set(entry.key, entry);
-  }
-  renderWatchlist();
-  updateWatchlistButtons();
-  updateSpotlightWatchlistButton();
-}
-
-function renderWatchlist() {
-  const items = [...state.watchlist.values()];
-  if (!items.length) {
-    elements.watchlistList.innerHTML = `<li class="watchlist-empty">Pin films to keep them handy for your next movie night.</li>`;
-    return;
-  }
-  elements.watchlistList.innerHTML = items
-    .map((entry) => {
-      const filmLink = entry.film.film_link || "#";
-      const firstCategory = entry.film.nominations[0]?.category || "Nominee";
-      return `
-        <li class="watchlist-item">
-          <div>
-            <a href="${filmLink}" target="_blank" rel="noreferrer">${entry.film.film_title || "Untitled"}</a>
-            <p>${entry.yearLabel} · ${firstCategory}</p>
-          </div>
-          <button class="watchlist-remove" type="button" data-watch-remove="${entry.key}">Remove</button>
-        </li>
-      `;
-    })
-    .join("");
-}
-
-function updateWatchlistButtons() {
-  document.querySelectorAll(".watchlist-toggle").forEach((button) => {
-    const key = button.dataset.filmKey;
-    const saved = state.watchlist.has(key);
-    button.classList.toggle("saved", saved);
-    button.textContent = saved ? "Saved" : "Save";
-    button.setAttribute("aria-pressed", saved);
-  });
-}
-
-function updateSpotlight(entries) {
-  if (!entries.length) {
-    elements.spotlightTitle.textContent = "Pick a filter to highlight a nominee";
-    elements.spotlightMeta.textContent = "The film with the most wins automatically rises to the top.";
-    elements.spotlightBadges.innerHTML = "";
-    elements.spotlightLink.setAttribute("aria-disabled", "true");
-    elements.spotlightLink.href = "#";
-    state.spotlightEntry = null;
-    updateSpotlightWatchlistButton();
-    return;
-  }
-
-  let winner = entries[0];
-  let bestScore = computeSpotlightScore(winner.film);
-  for (const entry of entries) {
-    const score = computeSpotlightScore(entry.film);
-    if (score > bestScore) {
-      winner = entry;
-      bestScore = score;
-    }
-  }
-
-  const film = winner.film;
-  const winCount = film.nominations.filter((nom) => nom.winner).length;
-  const nominationCount = film.nominations.length;
-  const badgeMeta = [];
-  badgeMeta.push(`<span class="badge">Wins: ${winCount}</span>`);
-  badgeMeta.push(`<span class="badge">Nominations: ${nominationCount}</span>`);
-  const topCategories = [...new Set(film.nominations.map((nom) => nom.category))]
-    .filter(Boolean)
-    .slice(0, 3);
-  badgeMeta.push(...topCategories.map((category) => `<span class="badge">${category}</span>`));
-
-  elements.spotlightTitle.textContent = film.film_title || "Untitled";
-  elements.spotlightMeta.textContent = `${winCount} wins · ${nominationCount} nominations · ${winner.yearLabel}`;
-  elements.spotlightBadges.innerHTML = badgeMeta.join("");
-
-  if (film.film_link) {
-    elements.spotlightLink.href = film.film_link;
-    elements.spotlightLink.removeAttribute("aria-disabled");
-  } else {
-    elements.spotlightLink.href = "#";
-    elements.spotlightLink.setAttribute("aria-disabled", "true");
-  }
-
-  state.spotlightEntry = winner;
-  updateSpotlightWatchlistButton();
-}
-
-function computeSpotlightScore(film) {
-  const wins = film.nominations.filter((nom) => nom.winner).length;
-  const total = film.nominations.length;
-  return wins * 100 + total;
-}
-
-function updateSpotlightWatchlistButton() {
-  if (!state.spotlightEntry) {
-    elements.spotlightWatchlist.disabled = true;
-    elements.spotlightWatchlist.classList.remove("saved");
-    elements.spotlightWatchlist.textContent = "Add to watchlist";
-    elements.spotlightWatchlist.removeAttribute("aria-pressed");
-    return;
-  }
-  elements.spotlightWatchlist.disabled = false;
-  const saved = state.watchlist.has(state.spotlightEntry.key);
-  elements.spotlightWatchlist.textContent = saved ? "Saved" : "Add to watchlist";
-  elements.spotlightWatchlist.classList.toggle("saved", saved);
-  elements.spotlightWatchlist.setAttribute("aria-pressed", saved);
-}
-
-function handleRandomPick() {
-  const films = filterFilms();
-  if (!films.length) {
-    elements.randomMeta.textContent = "Refine your filters to unlock nominees.";
-    return;
-  }
-  const yearBlock = getCurrentYearBlock();
-  const film = films[Math.floor(Math.random() * films.length)];
-  const key = getFilmKey(film, yearBlock.award_show_number);
-  const entry = state.filmIndex.get(key);
-  state.randomEntry = entry || {
-    film,
-    yearLabel: yearBlock.label,
-    yearNumber: yearBlock.award_show_number,
-    key,
-  };
-  updateRandomCard();
-}
-
-function updateRandomCard() {
-  const entry = state.randomEntry;
-  if (!entry) {
-    elements.randomTitle.textContent = "Let the ceremony decide";
-    elements.randomMeta.textContent = "Spin the wheel to spotlight another nominee.";
-    return;
-  }
-  const film = entry.film;
-  const winCount = film.nominations.filter((nom) => nom.winner).length;
-  const nominationCount = film.nominations.length;
-  elements.randomTitle.textContent = film.film_title || "Untitled";
-  elements.randomMeta.textContent = `${winCount} wins · ${nominationCount} nominations · ${entry.yearLabel}`;
 }
 
 function openActorModal(person) {
@@ -411,7 +256,6 @@ function applyActorInfo(info) {
   }
   elements.modalSummary.textContent = info.extract || "No summary provided.";
   elements.modalLink.href = info.content_urls?.desktop?.page || info.canonical || elements.modalLink.href;
-  elements.modalLink.textContent = "Read on Wikipedia";
 }
 
 function closeModal() {
@@ -419,8 +263,6 @@ function closeModal() {
   elements.modalError.textContent = "";
   modalRequest?.abort?.();
 }
-
-let modalRequest = null;
 
 function attachEvents() {
   elements.yearSelect.addEventListener("change", (event) => {
@@ -434,19 +276,6 @@ function attachEvents() {
   elements.searchInput.addEventListener("input", (event) => {
     state.search = event.target.value;
     renderFilms();
-  });
-  elements.randomButton.addEventListener("click", handleRandomPick);
-  elements.spotlightWatchlist.addEventListener("click", () => {
-    if (!state.spotlightEntry) return;
-    toggleWatchlist(state.spotlightEntry);
-  });
-  elements.watchlistList.addEventListener("click", (event) => {
-    const key = event.target.dataset.watchRemove;
-    if (!key) return;
-    state.watchlist.delete(key);
-    renderWatchlist();
-    updateWatchlistButtons();
-    updateSpotlightWatchlistButton();
   });
   elements.modalClose.addEventListener("click", closeModal);
   elements.modal.addEventListener("click", (event) => {
@@ -466,8 +295,6 @@ async function init() {
   populateFilters();
   attachEvents();
   renderFilms();
-  renderWatchlist();
-  updateRandomCard();
 }
 
 init();
