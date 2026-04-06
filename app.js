@@ -6,7 +6,47 @@ const state = {
   winnersOnly: true,
 };
 
+const STORAGE_KEY = "oscars-film-images";
 const filmImageCache = new Map();
+
+function loadCacheFromStorage() {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (!raw) return;
+  try {
+    const parsed = JSON.parse(raw);
+    Object.entries(parsed).forEach(([key, value]) => {
+      filmImageCache.set(key, value);
+    });
+  } catch {
+    localStorage.removeItem(STORAGE_KEY);
+  }
+}
+
+function persistImageCache() {
+  const entries = {};
+  filmImageCache.forEach((value, key) => {
+    entries[key] = value;
+  });
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+  } catch {
+    // storage quota may fail; ignore
+  }
+}
+const manualImageQueries = new Map([
+  ["coda", ["CODA (film)", "CODA (2021 film)"]],
+  ["the artist", ["The Artist (film)"]],
+  ["spotlight", ["Spotlight (film)", "Spotlight (2015 film)"]],
+  ["amadeus", ["Amadeus (film)"]],
+]);
+
+function extractYearSnippet(label) {
+  if (!label) return "";
+  const mainItem = label.split(" ")[0] || label;
+  return mainItem.replace(/[^\d/]/g, "");
+}
+
+const filmRegistry = new Map();
 
 const elements = {
   yearSelect: document.getElementById("yearSelect"),
@@ -17,11 +57,13 @@ const elements = {
   statsYears: document.getElementById("statYears"),
   statsFilms: document.getElementById("statFilms"),
   statsCategories: document.getElementById("statCategories"),
-  modal: document.getElementById("actorModal"),
-  modalTitle: document.getElementById("actorModalTitle"),
-  modalSummary: document.getElementById("modalSummary"),
-  modalLink: document.getElementById("modalLink"),
-  modalClose: document.getElementById("modalClose"),
+  filmModal: document.getElementById("filmModal"),
+  filmModalThumb: document.getElementById("filmModalThumb"),
+  filmModalTitle: document.getElementById("filmModalTitle"),
+  filmModalSubline: document.getElementById("filmModalSubline"),
+  filmModalSummary: document.getElementById("filmModalSummary"),
+  filmModalNominations: document.getElementById("filmModalNominations"),
+  filmModalClose: document.getElementById("filmModalClose"),
   loading: document.getElementById("loading"),
 };
 
@@ -53,15 +95,15 @@ function populateFilters() {
   elements.yearSelect.value = "";
 
   const bestPicture = findBestPictureCategory();
-  const baseValue = bestPicture || "";
-  const baseLabel = bestPicture || "Best Picture";
+  const uniqueCategories = Array.from(new Set(state.data.categories));
+  const filteredCategories = uniqueCategories.filter((cat) => cat !== bestPicture);
   elements.categorySelect.innerHTML = [
-    `<option value=\"${baseValue}\">${baseLabel}</option>`,
-    ...state.data.categories.map((cat) => `<option value=\"${cat}\">${cat}</option>`),
     "<option value=\"\">All categories</option>",
+    `<option value=\"${bestPicture}\">${bestPicture}</option>`,
+    ...filteredCategories.map((cat) => `<option value=\"${cat}\">${cat}</option>`),
   ].join("");
-  state.category = baseValue;
-  elements.categorySelect.value = baseValue;
+  state.category = bestPicture || "";
+  elements.categorySelect.value = state.category;
 
   updateStats();
 }
@@ -80,18 +122,23 @@ function getYearBlock() {
 
 function filterFilms() {
   const search = state.search.trim().toLowerCase();
+  const activeCategory = state.category || null;
   const blocks = state.year
     ? [getYearBlock()]
     : [...state.data.years].sort((a, b) => b.award_show_number - a.award_show_number);
   const entries = blocks.flatMap((yearBlock) =>
     yearBlock.films
       .filter((film) => {
-        const activeCategory = state.category || findBestPictureCategory();
-        if (state.winnersOnly && activeCategory) {
-          const hasWinner = film.nominations.some((nom) => nom.winner && nom.category === activeCategory);
-          if (!hasWinner) return false;
-        } else if (state.winnersOnly && !activeCategory) {
-          return false;
+        if (state.winnersOnly) {
+          if (activeCategory) {
+            const hasWinner = film.nominations.some(
+              (nom) => nom.winner && nom.category === activeCategory
+            );
+            if (!hasWinner) return false;
+          } else {
+            const hasAnyWinner = film.nominations.some((nom) => nom.winner);
+            if (!hasAnyWinner) return false;
+          }
         }
         if (state.category) {
           const hasCategory = film.nominations.some((nom) => nom.category === state.category);
@@ -127,11 +174,12 @@ async function renderFilms() {
     elements.filmList.innerHTML = `<p class="empty">No results.</p>`;
     return;
   }
-  const filterCategory = state.category || findBestPictureCategory();
-  const selectedCategory = state.category;
+  const filterCategory = state.category || null;
+  filmRegistry.clear();
   elements.filmList.innerHTML = entries
-    .map(({ film, yearLabel }) => {
+    .map(({ film, yearLabel, yearNumber }) => {
       const key = getFilmKey(film, yearLabel);
+      filmRegistry.set(key, { film, yearLabel, yearNumber });
       const wins = film.nominations.filter((nom) => nom.winner).length;
       const hasCategoryWinner = filterCategory
         ? film.nominations.some((nom) => nom.winner && nom.category === filterCategory)
@@ -139,33 +187,24 @@ async function renderFilms() {
       const winnerBadge = hasCategoryWinner
         ? `<span class="winner-badge">Winner</span>`
         : "";
-      const relevantNominations = film.nominations.filter((nom) => {
-        if (selectedCategory) {
-          return nom.category === selectedCategory && (!state.winnersOnly || nom.winner);
-        }
-        return nom.winner;
-      });
-      const detailLines = relevantNominations
+      const winnerNoms = filterCategory
+        ? []
+        : film.nominations.filter((nom) => nom.winner);
+      const detailText = winnerNoms
+        .slice(0, 2)
         .map((nom) => {
-          const persons = (nom.people || [])
-            .filter(Boolean)
-            .join(", ");
-          const statement = nom.nomination_statement || "";
-          const characters = Array.isArray(nom.characters) ? nom.characters.join(", ") : "";
-          const body = [];
-          if (persons) body.push(persons);
-          if (statement && statement !== persons) body.push(statement);
-          const note = characters ? ` (as ${characters})` : "";
-          if (!body.length) return "";
-          const label = selectedCategory ? "" : `${nom.category}: `;
-          return `<span class="film-detail-text">${label}${body.join(" — ")}${note}</span>`;
+          const heads = nom.nomination_statement || nom.people?.[0] || "";
+          const people = (nom.people || []).join(", ");
+          const label = nom.category ? `${nom.category}: ` : "";
+          return `${label}${heads || people || "Winner"}`;
         })
         .filter(Boolean)
-        .slice(0, 2)
-        .join("");
-      const detailBlock = detailLines ? `<div class="film-detail-block">${detailLines}</div>` : "";
+        .join(" · ");
+      const detailBlock = detailText
+        ? `<div class="film-detail">${detailText}</div>`
+        : "";
       return `
-        <article class="film-card">
+        <article class="film-card" data-film-key="${key}">
           <figure class="film-thumb" data-film-key="${key}" aria-hidden="true">
             ${winnerBadge}
           </figure>
@@ -183,10 +222,6 @@ async function renderFilms() {
     })
     .join("");
 
-  document.querySelectorAll(".person-chip").forEach((chip) => {
-    chip.addEventListener("click", () => openActorModal(chip.dataset.person));
-  });
-
   await populateFilmImages(entries);
 }
 
@@ -194,8 +229,8 @@ async function populateFilmImages(entries) {
   for (const { film, yearLabel } of entries) {
     const title = film.film_title;
     if (!title) continue;
-    const url = await fetchFilmImage(title);
-    const thumb = document.querySelector(`[data-film-key="${getFilmKey(film, yearLabel)}"]`);
+    const url = await fetchFilmImage(title, yearLabel);
+    const thumb = document.querySelector(`.film-thumb[data-film-key="${getFilmKey(film, yearLabel)}"]`);
     if (!thumb) continue;
     if (!url) {
       thumb.classList.add("placeholder");
@@ -206,7 +241,57 @@ async function populateFilmImages(entries) {
   }
 }
 
-async function fetchFilmImage(title) {
+async function openFilmModal(entry) {
+  const { film, yearLabel } = entry;
+  elements.filmModalTitle.textContent = film.film_title || "Untitled film";
+  const sublineParts = [yearLabel];
+  if (film.production_companies) sublineParts.push(film.production_companies);
+  if (film.distributors) sublineParts.push(film.distributors);
+  elements.filmModalSubline.textContent = sublineParts.join(" • ");
+  const summaryParts = [];
+  if (film.production_companies) summaryParts.push(`Production: ${film.production_companies}`);
+  if (film.distributors) summaryParts.push(`Distributor: ${film.distributors}`);
+  elements.filmModalSummary.textContent =
+    summaryParts.join(" | ") || "Complete nomination breakdown below.";
+  const nominationsHtml = film.nominations
+    .map((nom) => {
+      const people = (nom.people || []).filter(Boolean).join(", ");
+      const characters = (nom.characters || []).filter(Boolean).join(", ");
+      const statement = nom.nomination_statement ? `<span>${nom.nomination_statement}</span>` : "";
+      const extras = [people && `<span>People: ${people}</span>`, characters && `<span>Characters: ${characters}</span>`]
+        .filter(Boolean)
+        .join("");
+      return `
+        <li class="film-modal-nomination ${nom.winner ? "is-winner" : ""}">
+          <strong>${nom.category}${nom.winner ? " • Winner" : ""}</strong>
+          ${statement}
+          ${extras}
+        </li>
+      `;
+    })
+    .join("");
+  elements.filmModalNominations.innerHTML =
+    nominationsHtml || '<li class="film-modal-nomination">No nominations recorded.</li>';
+  const cacheKey = film.film_title?.trim().toLowerCase() || "";
+  let thumbUrl = cacheKey ? filmImageCache.get(cacheKey) : null;
+  if (!thumbUrl && cacheKey) {
+    thumbUrl = await fetchFilmImage(film.film_title, yearLabel);
+  }
+  if (thumbUrl) {
+    elements.filmModalThumb.style.backgroundImage = `url(${thumbUrl})`;
+    elements.filmModalThumb.classList.remove("hidden");
+  } else {
+    elements.filmModalThumb.style.backgroundImage = "";
+    elements.filmModalThumb.classList.add("hidden");
+  }
+  elements.filmModal.classList.remove("hidden");
+}
+
+function closeFilmModal() {
+  elements.filmModal.classList.add("hidden");
+}
+
+async function fetchFilmImage(title, yearLabel) {
   const cacheKey = title.trim().toLowerCase();
   if (filmImageCache.has(cacheKey)) {
     return filmImageCache.get(cacheKey);
@@ -238,10 +323,32 @@ async function fetchFilmImage(title) {
     }
   };
 
-  const candidates = [title, `${title} film`];
+  const tryCandidate = async (candidate) => {
+    const summary = await fetchSummaryImage(candidate);
+    if (summary) return summary;
+    return searchThenSummary(candidate);
+  };
+
+  const yearSnippet = extractYearSnippet(yearLabel);
+  const overrideQueries = manualImageQueries.get(cacheKey) || [];
+  const baseVariants = [
+    `${title} (film)`,
+    `${title} (movie)`,
+    `${title} film`,
+    `${title} movie`,
+  ];
+  const yearVariants = yearSnippet
+    ? [
+        `${title} ${yearSnippet}`,
+        `${title} ${yearSnippet} (film)`,
+        `${title} ${yearSnippet} (movie)`,
+        `${title} ${yearSnippet} movie`,
+      ]
+    : [];
+  const candidates = [...baseVariants, ...yearVariants, title, ...overrideQueries].filter(Boolean);
   let thumb = null;
   for (const candidate of candidates) {
-    thumb = await fetchSummaryImage(candidate);
+    thumb = await tryCandidate(candidate);
     if (thumb) break;
   }
   if (!thumb) {
@@ -249,28 +356,8 @@ async function fetchFilmImage(title) {
   }
 
   filmImageCache.set(cacheKey, thumb);
+  persistImageCache();
   return thumb;
-}
-
-function openActorModal(person) {
-  if (!person) return;
-  elements.modal.classList.remove("hidden");
-  elements.modalTitle.textContent = person;
-  elements.modalSummary.textContent = "Loading…";
-  elements.modalLink.href = `https://en.wikipedia.org/wiki/${encodeURIComponent(person)}`;
-  elements.modalLink.textContent = "Read more";
-  fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(person)}`)
-    .then((res) => (res.ok ? res.json() : Promise.reject()))
-    .then((payload) => {
-      elements.modalSummary.textContent = payload.extract || "No summary available.";
-    })
-    .catch(() => {
-      elements.modalSummary.textContent = "No summary available.";
-    });
-}
-
-function closeModal() {
-  elements.modal.classList.add("hidden");
 }
 
 function attachEvents() {
@@ -292,13 +379,22 @@ function attachEvents() {
     state.winnersOnly = event.target.checked;
     renderFilms();
   });
-  elements.modalClose.addEventListener("click", closeModal);
-  elements.modal.addEventListener("click", (event) => {
-    if (event.target === elements.modal) closeModal();
+  elements.filmList.addEventListener("click", async (event) => {
+    const card = event.target.closest(".film-card");
+    if (!card) return;
+    const entry = filmRegistry.get(card.dataset.filmKey);
+    if (!entry) return;
+    event.preventDefault();
+    await openFilmModal(entry);
+  });
+  elements.filmModalClose.addEventListener("click", closeFilmModal);
+  elements.filmModal.addEventListener("click", (event) => {
+    if (event.target === elements.filmModal) closeFilmModal();
   });
 }
 
 async function init() {
+  loadCacheFromStorage();
   await fetchData();
   populateFilters();
   attachEvents();

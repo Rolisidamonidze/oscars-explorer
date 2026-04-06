@@ -16,19 +16,65 @@ body {
 }
 
 .roof {
-  padding: 2rem;
+  padding: 1.2rem 2rem 1rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
 }
 
 .roof h1 {
-  margin: 0 0 0.25rem;
+  margin: 0;
   font-weight: 600;
-  font-size: 2rem;
+  font-size: 1.4rem;
 }
 
-.roof p {
-  margin: 0;
-  color: rgba(245, 247, 255, 0.6);
+.logo-lockup {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.logo-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 999px;
+  background: radial-gradient(circle at 30% 30%, #facc15, #f59e0b 55%, #111827 120%);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+}
+
+.logo-icon::after {
+  content: "";
+  width: 18px;
+  height: 28px;
+  background: radial-gradient(circle, #fde68a 20%, #f59e0b 70%);
+  border-radius: 8px 8px 2px 2px;
+  position: absolute;
+  bottom: 7px;
+  box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.4);
+}
+
+.logo-text {
+  font-size: 1.6rem;
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  color: #f9fafb;
+  font-weight: 600;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
 }
 
 .filters {
@@ -99,25 +145,23 @@ main {
   background: rgba(15, 23, 42, 0.95);
   border-radius: 0.75rem;
   border: 1px solid rgba(255, 255, 255, 0.05);
-  padding: 1rem;
+  padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  min-height: 220px;
   overflow: hidden;
   position: relative;
-  max-height: 380px;
+  min-height: 320px;
 }
 
 .film-thumb {
   width: 100%;
-  height: 140px;
+  height: 220px;
   background: rgba(255, 255, 255, 0.05) center/cover;
-  border-radius: 0.5rem;
+  border-radius: 0.55rem 0.55rem 0 0;
   display: block;
   background-size: cover;
   background-position: center;
-  margin: -1rem -1rem 0;
+  margin: 0;
   position: relative;
   z-index: 1;
 }
@@ -163,29 +207,37 @@ main {
 .film-info {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
-}
-
-.film-detail-block {
-  display: flex;
-  flex-direction: column;
   gap: 0.25rem;
-  font-size: 0.7rem;
-  color: rgba(245, 247, 255, 0.65);
-  margin-top: 0.3rem;
-}
-
-.film-detail-text {
-  display: block;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  background: rgba(3, 7, 18, 0.95);
+  padding: 0.55rem 0.8rem 0.75rem;
+  margin-top: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 0 0 0.75rem 0.75rem;
+  position: relative;
+  z-index: 2;
 }
 
 .film-meta {
   display: flex;
-  gap: 0.75rem;
-  font-size: 0.75rem;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+  font-size: 0.7rem;
+  color: rgba(245, 247, 255, 0.7);
+}
+
+.film-meta span {
+  background: rgba(4, 10, 20, 0.9);
+  padding: 0.12rem 0.45rem;
+  border-radius: 0.35rem;
+}
+
+.film-detail {
+  font-size: 0.65rem;
   color: rgba(245, 247, 255, 0.6);
+  letter-spacing: 0.08em;
+  margin-top: -0.1rem;
+  display: block;
+  text-transform: none;
 }
 
 .film-people {
@@ -272,6 +324,79 @@ main {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  max-height: 90vh;
+  overflow: hidden;
+}
+
+.film-modal-inner {
+  overflow-y: auto;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.film-modal-thumb {
+  width: 100%;
+  height: 176px;
+  border-radius: 0.65rem;
+  background: rgba(255, 255, 255, 0.04) center/cover;
+  background-position: center;
+  margin-bottom: 0.35rem;
+  flex-shrink: 0;
+}
+
+.film-modal-subline {
+  margin: 0;
+  font-size: 0.75rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: rgba(245, 247, 255, 0.6);
+}
+
+.film-modal-summary {
+  margin: 0;
+  font-size: 0.9rem;
+  color: rgba(245, 247, 255, 0.8);
+}
+
+.film-modal-nominations {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.film-modal-link {
+  display: none;
+}
+
+.film-modal-nomination {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  font-size: 0.8rem;
+  background: rgba(15, 23, 42, 0.7);
+}
+
+.film-modal-nomination strong {
+  display: block;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  margin-bottom: 0.35rem;
+  color: rgba(245, 247, 255, 0.6);
+}
+
+.film-modal-nomination span {
+  display: block;
+  color: rgba(245, 247, 255, 0.75);
+}
+
+.film-modal-nomination.is-winner {
+  border-color: rgba(250, 204, 21, 0.8);
 }
 
 .modal-body h2 {

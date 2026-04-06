@@ -8,8 +8,11 @@
 </head>
 <body>
   <div class="roof">
-    <h1>Oscars Explorer</h1>
-    <p>Browse the nominees with a single search and filter interface.</p>
+    <div class="logo-lockup">
+      <span class="logo-icon" aria-hidden="true"></span>
+      <span class="logo-text">Oscars</span>
+    </div>
+    <span class="sr-only">Browse the nominees with a single search and filter interface.</span>
   </div>
 
   <section class="filters">
@@ -43,12 +46,25 @@
     <div id="filmList" class="film-grid"></div>
   </main>
 
-  <div id="actorModal" class="modal hidden" role="dialog" aria-modal="true">
+  <div id="filmModal" class="modal hidden" role="dialog" aria-modal="true">
     <div class="modal-body">
-      <button id="modalClose" class="close">×</button>
-      <h2 id="actorModalTitle"></h2>
-      <p id="modalSummary"></p>
-      <a id="modalLink" href="#" target="_blank" rel="noreferrer">Read more</a>
+      <button id="filmModalClose" class="close" aria-label="Close modal">×</button>
+      <div class="film-modal-inner">
+        <div id="filmModalThumb" class="film-modal-thumb hidden" aria-hidden="true"></div>
+        <div class="film-modal-copy">
+          <h2 id="filmModalTitle"></h2>
+          <p id="filmModalSubline" class="film-modal-subline"></p>
+          <p id="filmModalSummary" class="film-modal-summary"></p>
+          <div class="film-modal-meta">
+            <span id="filmModalProduction"></span>
+            <span id="filmModalDistributor"></span>
+          </div>
+        </div>
+        <section class="film-modal-nomination-list">
+          <h3>Nominations</h3>
+          <ul id="filmModalNominations" class="film-modal-nominations"></ul>
+        </section>
+      </div>
     </div>
   </div>
 
