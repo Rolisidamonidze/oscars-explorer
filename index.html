@@ -7,75 +7,48 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <div class="page-shell">
-    <header class="site-header">
-      <div>
-        <p class="eyebrow">Archive · Reference · Story</p>
-        <h1>Oscars Explorer</h1>
-        <p class="lead">Browse every nominee and winner by year, drill down by award category, and peek at the people who brought the films to life.</p>
-      </div>
-      <div class="stats" aria-live="polite">
-        <p id="statYears"></p>
-        <p id="statFilms"></p>
-        <p id="statCategories"></p>
-      </div>
-    </header>
-
-    <section class="filters" aria-label="Year and category filters">
-      <label>
-        <span>Year</span>
-        <select id="yearSelect"></select>
-      </label>
-      <label>
-        <span>Category</span>
-        <select id="categorySelect">
-          <option value="">All awards</option>
-        </select>
-      </label>
-      <label class="search-field">
-        <span>Search</span>
-        <input id="searchInput" type="search" placeholder="Film title, people, or category" />
-      </label>
-    </section>
-
-    <section class="random-panel" aria-label="Movie of the day">
-      <div class="random-card">
-        <p class="eyebrow">Movie of the day</p>
-        <h2 id="movieOfDayTitle">Need inspiration?</h2>
-        <p id="movieOfDayMeta" class="muted">Pick once per calendar day to lock in a fresh nominee.</p>
-        <div class="random-actions">
-          <button id="movieOfDayButton" class="primary-button" type="button">Pick today's movie</button>
-          <span id="movieOfDayStatus" class="status-label"></span>
-        </div>
-        <button id="movieOfDayWatch" class="watch-toggle" type="button" disabled>Mark as watched</button>
-      </div>
-    </section>
-
-    <main class="film-area" aria-label="Oscars nominees">
-      <div class="section-heading">
-        <h2>Nominees</h2>
-        <p class="section-subtitle">Showing entries for <strong id="currentYearLabel">the current ceremony</strong>.</p>
-      </div>
-      <div id="filmList" class="film-grid" aria-live="polite"></div>
-    </main>
+  <div class="roof">
+    <h1>Oscars Explorer</h1>
+    <p>Browse the nominees with a single search and filter interface.</p>
   </div>
 
-  <div id="actorModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="actorModalTitle">
-    <div class="modal-content">
-      <button id="modalClose" class="modal-close" aria-label="Close actor profile">×</button>
-      <div class="modal-body">
-        <div class="modal-thumb" id="modalThumb"></div>
-        <div>
-          <h2 id="actorModalTitle"></h2>
-          <p class="modal-description" id="modalSummary"></p>
-          <p class="modal-error" id="modalError"></p>
-          <a id="modalLink" class="modal-link" href="#" target="_blank" rel="noreferrer">Read on Wikipedia</a>
-        </div>
-      </div>
+  <section class="filters">
+    <label>
+      Year
+      <select id="yearSelect"></select>
+    </label>
+    <label>
+      Category
+      <select id="categorySelect">
+        <option value="">All</option>
+      </select>
+    </label>
+    <label>
+      Search
+      <input id="searchInput" type="search" placeholder="film title, person, or category" />
+    </label>
+  </section>
+
+  <section class="stats">
+    <span id="statYears"></span>
+    <span id="statFilms"></span>
+    <span id="statCategories"></span>
+  </section>
+
+  <main>
+    <div id="filmList" class="film-grid"></div>
+  </main>
+
+  <div id="actorModal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-body">
+      <button id="modalClose" class="close">×</button>
+      <h2 id="actorModalTitle"></h2>
+      <p id="modalSummary"></p>
+      <a id="modalLink" href="#" target="_blank" rel="noreferrer">Read more</a>
     </div>
   </div>
 
-  <div id="loading" class="loading-overlay hidden">Loading…</div>
+  <div id="loading" class="loading hidden">Loading…</div>
   <script src="app.js" type="module"></script>
 </body>
 </html>
