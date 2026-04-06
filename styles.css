@@ -16,11 +16,14 @@ body {
 }
 
 .roof {
-  padding: 1.2rem 2rem 1rem;
+  padding: 1.2rem 2rem 0.8rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 1rem;
+  flex-wrap: nowrap;
+  justify-content: space-between;
+  overflow: hidden;
 }
 
 .roof h1 {
@@ -29,33 +32,104 @@ body {
   font-size: 1.4rem;
 }
 
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-left: auto;
+}
+
+.header-controls label {
+  font-size: 0.6rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(245, 247, 255, 0.6);
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-weight: 500;
+  min-width: 80px;
+  max-width: 140px;
+}
+
+.header-controls select {
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  padding: 0.35rem 0.9rem;
+  appearance: none;
+}
+
+.header-controls input {
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  padding: 0.45rem 1rem;
+  font-size: 0.9rem;
+  outline: none;
+  min-width: 180px;
+}
+
+.header-controls select:focus {
+  outline: none;
+  border-color: #facc15;
+}
+
+.search-label {
+  flex: 1;
+  min-width: 140px;
+}
+
+.search-label input {
+  min-width: 140px;
+  max-width: 220px;
+}
+
+.header-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.7rem;
+}
+
+.header-toggle span {
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(245, 247, 255, 0.7);
+}
+
+.header-toggle input {
+  width: 1rem;
+  height: 1rem;
+  accent-color: #facc15;
+}
+
 .logo-lockup {
   display: inline-flex;
   align-items: center;
   gap: 0.6rem;
+  flex: 0 0 auto;
 }
 
 .logo-icon {
-  width: 52px;
-  height: 52px;
-  border-radius: 999px;
-  background: radial-gradient(circle at 30% 30%, #facc15, #f59e0b 55%, #111827 120%);
+  width: 42px;
+  height: 48px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, #111827 0%, #1f2937 60%, #1f1b2a 100%);
+  overflow: hidden;
   position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+  box-shadow: inset 0 0 12px rgba(255, 255, 255, 0.1), 0 6px 20px rgba(0, 0, 0, 0.45);
 }
 
-.logo-icon::after {
-  content: "";
-  width: 18px;
-  height: 28px;
-  background: radial-gradient(circle, #fde68a 20%, #f59e0b 70%);
-  border-radius: 8px 8px 2px 2px;
-  position: absolute;
-  bottom: 7px;
-  box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.4);
+.logo-icon svg {
+  width: 28px;
+  height: 32px;
+  filter: drop-shadow(0 0 5px rgba(0, 0, 0, 0.4));
 }
 
 .logo-text {
@@ -75,50 +149,6 @@ body {
   overflow: hidden;
   clip: rect(0, 0, 0, 0);
   border: 0;
-}
-
-.filters {
-  display: flex;
-  gap: 1rem;
-  padding: 1rem 2rem 1.5rem;
-}
-
-.filters .toggle {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.75rem;
-  letter-spacing: 0.05em;
-  color: rgba(245, 247, 255, 0.7);
-}
-
-.filters label {
-  flex: 1;
-  font-size: 0.8rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: rgba(245, 247, 255, 0.6);
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-}
-
-.filters select,
-.filters input {
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 0.35rem;
-  background: transparent;
-  color: #f5f5f7;
-  padding: 0.6rem 0.75rem;
-}
-
-.filters .toggle input {
-  width: 1rem;
-  height: 1rem;
-}
-
-.filters input::placeholder {
-  color: rgba(245, 247, 255, 0.35);
 }
 
 .stats {
@@ -167,7 +197,11 @@ main {
 }
 
 .film-thumb.placeholder {
-  background-image: linear-gradient(135deg, rgba(99, 102, 241, 0.4), rgba(15, 23, 42, 0.4));
+  background-image:
+    linear-gradient(135deg, rgba(99, 102, 241, 0.25), rgba(15, 23, 42, 0.35)),
+    url("https://nexus.leagueapps.com/blog/wp-content/uploads/2020/01/academy-awards-oscar-statue-statue.png");
+  background-size: cover;
+  background-position: center;
 }
 
 .film-thumb .winner-badge {
@@ -318,8 +352,8 @@ main {
   background: #0c111e;
   padding: 1.5rem;
   border-radius: 0.75rem;
-  max-width: 420px;
-  width: 90%;
+  max-width: 780px;
+  width: min(96vw, 780px);
   text-align: left;
   display: flex;
   flex-direction: column;
@@ -330,20 +364,24 @@ main {
 
 .film-modal-inner {
   overflow-y: auto;
-  max-height: 80vh;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  max-height: 86vh;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
 }
 
 .film-modal-thumb {
   width: 100%;
-  height: 176px;
+  height: 210px;
   border-radius: 0.65rem;
   background: rgba(255, 255, 255, 0.04) center/cover;
   background-position: center;
-  margin-bottom: 0.35rem;
   flex-shrink: 0;
+}
+
+.film-modal-copy h2 {
+  margin: 0;
+  font-size: 1.5rem;
 }
 
 .film-modal-subline {
@@ -369,7 +407,37 @@ main {
   gap: 0.5rem;
 }
 
-.film-modal-link {
+.film-modal-nomination-list h3 {
+  margin: 0;
+  font-size: 0.85rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(245, 247, 255, 0.6);
+}
+
+.film-modal-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.film-modal-meta {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: rgba(245, 247, 255, 0.6);
+}
+
+.film-modal-meta span {
+  background: rgba(4, 10, 20, 0.8);
+  padding: 0.2rem 0.5rem;
+  border-radius: 0.45rem;
+}
+
+.film-modal-meta span:empty {
   display: none;
 }
 

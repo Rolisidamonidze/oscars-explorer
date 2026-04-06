@@ -65,6 +65,8 @@ const elements = {
   filmModalNominations: document.getElementById("filmModalNominations"),
   filmModalClose: document.getElementById("filmModalClose"),
   loading: document.getElementById("loading"),
+  filmModalProduction: document.getElementById("filmModalProduction"),
+  filmModalDistributor: document.getElementById("filmModalDistributor"),
 };
 
 async function fetchData() {
@@ -248,6 +250,8 @@ async function openFilmModal(entry) {
   if (film.production_companies) sublineParts.push(film.production_companies);
   if (film.distributors) sublineParts.push(film.distributors);
   elements.filmModalSubline.textContent = sublineParts.join(" • ");
+  elements.filmModalProduction.textContent = film.production_companies || "";
+  elements.filmModalDistributor.textContent = film.distributors || "";
   const summaryParts = [];
   if (film.production_companies) summaryParts.push(`Production: ${film.production_companies}`);
   if (film.distributors) summaryParts.push(`Distributor: ${film.distributors}`);
