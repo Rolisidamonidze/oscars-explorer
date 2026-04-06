@@ -1,8 +1,13 @@
+const STORAGE_WATCH_KEY = "oscars-explorer-watched";
+const STORAGE_RANDOM_KEY = "oscars-explorer-random";
+
 const state = {
   data: null,
   year: null,
   category: "",
   search: "",
+  watched: new Set(),
+  randomPick: null,
 };
 
 const elements = {
@@ -14,6 +19,11 @@ const elements = {
   statsFilms: document.getElementById("statFilms"),
   statsCategories: document.getElementById("statCategories"),
   currentYearLabel: document.getElementById("currentYearLabel"),
+  movieOfDayTitle: document.getElementById("movieOfDayTitle"),
+  movieOfDayMeta: document.getElementById("movieOfDayMeta"),
+  movieOfDayStatus: document.getElementById("movieOfDayStatus"),
+  movieOfDayButton: document.getElementById("movieOfDayButton"),
+  movieOfDayWatch: document.getElementById("movieOfDayWatch"),
   modal: document.getElementById("actorModal"),
   modalTitle: document.getElementById("actorModalTitle"),
   modalSummary: document.getElementById("modalSummary"),
@@ -27,6 +37,61 @@ const elements = {
 const actorCache = new Map();
 const filmImageCache = new Map();
 let modalRequest = null;
+
+function todayKey() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function getFilmKey(film, yearNumber) {
+  const title = (film.film_title || "untitled").toLowerCase();
+  return `${yearNumber}-${title}`
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function loadWatchedFilms() {
+  const stored = localStorage.getItem(STORAGE_WATCH_KEY);
+  if (!stored) return;
+  try {
+    const parsed = JSON.parse(stored);
+    if (Array.isArray(parsed)) {
+      state.watched = new Set(parsed);
+    }
+  } catch (error) {
+    console.warn("Unable to parse watched films", error);
+  }
+}
+
+function persistWatchedFilms() {
+  const list = [...state.watched];
+  localStorage.setItem(STORAGE_WATCH_KEY, JSON.stringify(list));
+}
+
+function loadRandomPick() {
+  const stored = localStorage.getItem(STORAGE_RANDOM_KEY);
+  if (!stored) {
+    state.randomPick = null;
+    return;
+  }
+  try {
+    const parsed = JSON.parse(stored);
+    if (parsed?.date === todayKey()) {
+      state.randomPick = parsed;
+      return;
+    }
+  } catch (error) {
+    console.warn("Unable to parse random pick", error);
+  }
+  state.randomPick = null;
+}
+
+function persistRandomPick() {
+  if (state.randomPick) {
+    localStorage.setItem(STORAGE_RANDOM_KEY, JSON.stringify(state.randomPick));
+  } else {
+    localStorage.removeItem(STORAGE_RANDOM_KEY);
+  }
+}
 
 async function fetchData() {
   elements.loading.classList.remove("hidden");
@@ -131,6 +196,7 @@ function renderFilms() {
         })
         .join("");
 
+      const watched = state.watched.has(key);
       return `
         <article class="film-card" data-film-key="${key}">
           <div class="film-thumb" aria-hidden="true"></div>
@@ -144,6 +210,14 @@ function renderFilms() {
               ${film.distributors ? `<span>${film.distributors}</span>` : ""}
             </div>
             <ul class="nomination-list">${nominationItems}</ul>
+            <button
+              class="watch-toggle${watched ? " watched" : ""}"
+              data-film-key="${key}"
+              type="button"
+              aria-pressed="${watched}"
+            >
+              ${watched ? "Watched" : "Mark as watched"}
+            </button>
           </div>
         </article>
       `;
@@ -151,7 +225,45 @@ function renderFilms() {
     .join("");
 
   attachFilmInteractions();
+  updateWatchButtons();
   populateFilmImages(filmEntries);
+}
+
+function attachFilmInteractions() {
+  document.querySelectorAll(".person-chip").forEach((chip) => {
+    chip.addEventListener("click", (event) => {
+      const person = event.currentTarget.dataset.person;
+      openActorModal(person);
+    });
+  });
+  document.querySelectorAll(".watch-toggle").forEach((button) => {
+    button.addEventListener("click", () => {
+      const key = button.dataset.filmKey;
+      if (!key) return;
+      toggleWatched(key);
+    });
+  });
+}
+
+function updateWatchButtons() {
+  document.querySelectorAll(".watch-toggle").forEach((button) => {
+    const key = button.dataset.filmKey;
+    const watched = state.watched.has(key);
+    button.classList.toggle("watched", watched);
+    button.textContent = watched ? "Watched" : "Mark as watched";
+    button.setAttribute("aria-pressed", watched);
+  });
+}
+
+function toggleWatched(key) {
+  if (state.watched.has(key)) {
+    state.watched.delete(key);
+  } else {
+    state.watched.add(key);
+  }
+  persistWatchedFilms();
+  updateWatchButtons();
+  updateRandomCard();
 }
 
 function populateFilmImages(entries) {
@@ -186,19 +298,10 @@ async function fetchFilmImage(title) {
     const imageUrl = payload.thumbnail?.source || null;
     filmImageCache.set(cacheKey, imageUrl);
     return imageUrl;
-  } catch {
+  } catch (error) {
     filmImageCache.set(cacheKey, null);
     return null;
   }
-}
-
-function attachFilmInteractions() {
-  document.querySelectorAll(".person-chip").forEach((chip) => {
-    chip.addEventListener("click", (event) => {
-      const person = event.currentTarget.dataset.person;
-      openActorModal(person);
-    });
-  });
 }
 
 function openActorModal(person) {
@@ -264,18 +367,69 @@ function closeModal() {
   modalRequest?.abort?.();
 }
 
+function handleRandomPick() {
+  if (state.randomPick && state.randomPick.date === todayKey()) {
+    return;
+  }
+  const films = filterFilms();
+  if (!films.length) {
+    elements.movieOfDayStatus.textContent = "Try another filter to unlock a pick.";
+    return;
+  }
+  const yearBlock = getCurrentYearBlock();
+  const film = films[Math.floor(Math.random() * films.length)];
+  const key = getFilmKey(film, yearBlock.award_show_number);
+  state.randomPick = {
+    key,
+    title: film.film_title || "Untitled",
+    yearLabel: yearBlock.label,
+    date: todayKey(),
+  };
+  persistRandomPick();
+  updateRandomCard();
+}
+
+function updateRandomCard() {
+  const pick = state.randomPick;
+  const today = todayKey();
+  const usedToday = pick?.date === today;
+  if (!pick) {
+    elements.movieOfDayTitle.textContent = "Need inspiration?";
+    elements.movieOfDayMeta.textContent = "Pick once per calendar day to lock in a fresh nominee.";
+    elements.movieOfDayStatus.textContent = "";
+  } else {
+    elements.movieOfDayTitle.textContent = pick.title;
+    elements.movieOfDayMeta.textContent = `${pick.yearLabel} · ${pick.date}`;
+    elements.movieOfDayStatus.textContent = usedToday ? "Locked in for today" : "Pick a new film for today";
+  }
+  elements.movieOfDayButton.disabled = usedToday;
+  elements.movieOfDayButton.textContent = usedToday ? "Movie locked in" : "Pick today's movie";
+  const watched = pick ? state.watched.has(pick.key) : false;
+  elements.movieOfDayWatch.disabled = !pick;
+  elements.movieOfDayWatch.textContent = watched ? "Watched" : "Mark as watched";
+  elements.movieOfDayWatch.classList.toggle("watched", watched);
+}
+
 function attachEvents() {
   elements.yearSelect.addEventListener("change", (event) => {
     state.year = Number(event.target.value);
     renderFilms();
+    updateRandomCard();
   });
   elements.categorySelect.addEventListener("change", (event) => {
     state.category = event.target.value;
     renderFilms();
+    updateRandomCard();
   });
   elements.searchInput.addEventListener("input", (event) => {
     state.search = event.target.value;
     renderFilms();
+    updateRandomCard();
+  });
+  elements.movieOfDayButton.addEventListener("click", handleRandomPick);
+  elements.movieOfDayWatch.addEventListener("click", () => {
+    if (!state.randomPick) return;
+    toggleWatched(state.randomPick.key);
   });
   elements.modalClose.addEventListener("click", closeModal);
   elements.modal.addEventListener("click", (event) => {
@@ -291,10 +445,13 @@ function attachEvents() {
 }
 
 async function init() {
+  loadWatchedFilms();
+  loadRandomPick();
   await fetchData();
   populateFilters();
   attachEvents();
   renderFilms();
+  updateRandomCard();
 }
 
 init();
