@@ -1,11 +1,72 @@
+function persistSuggestedMovie(movie) {
+  try {
+    const key = "oscars-suggested-movie-" + getTodayKey();
+    localStorage.setItem(key, JSON.stringify(movie));
+  } catch {}
+}
 const state = {
   data: null,
   year: "",
   category: "",
   search: "",
   winnersOnly: true,
+  watched: new Set(),
+  suggestedMovie: null,
 };
 
+const WATCHED_KEY = "oscars-watched-films";
+
+function loadWatchedFromStorage() {
+  try {
+    const raw = localStorage.getItem(WATCHED_KEY);
+    if (!raw) return;
+    const arr = JSON.parse(raw);
+    if (Array.isArray(arr)) {
+      state.watched = new Set(arr);
+    }
+  } catch {}
+}
+
+function persistWatchedToStorage() {
+  try {
+    localStorage.setItem(WATCHED_KEY, JSON.stringify(Array.from(state.watched)));
+  } catch {}
+}
+
+function getTodayKey() {
+  const now = new Date();
+  return now.toISOString().slice(0, 10); // YYYY-MM-DD
+}
+
+async function renderSuggestedMovie() {
+  const container = document.getElementById("suggestedMovie");
+  if (!container) return;
+  let entry = state.suggestedMovie;
+  if (!entry) {
+    entry = suggestMovieOfTheDay();
+  }
+  if (!entry) {
+    container.innerHTML = `<div class=\"suggested-empty\">No unwatched movies left to suggest!</div>`;
+    return;
+  }
+  const { film, yearLabel } = entry;
+  const key = getFilmKey(film, yearLabel);
+  const watched = state.watched.has(key);
+  // Try to get image
+  let imgUrl = null;
+  if (film.film_title) {
+    imgUrl = await fetchFilmImage(film.film_title, yearLabel);
+  }
+  container.innerHTML = `
+    <div class="suggested-card">
+      <div class="suggested-title">Movie of the Day</div>
+      <div class="suggested-film-title">${film.film_title} <span class="suggested-year">(${yearLabel})</span></div>
+      ${imgUrl ? `<div class="suggested-thumb" style="background-image:url('${imgUrl}')"></div>` : ""}
+      <button class="suggested-watched-btn" data-film-key="${key}" ${watched ? "disabled" : ""}>${watched ? "Watched" : "Mark as watched"}</button>
+      <button class="suggested-regen-btn" data-film-key="${key}">Regenerate</button>
+    </div>
+  `;
+}
 const STORAGE_KEY = "oscars-film-images";
 const filmImageCache = new Map();
 
@@ -78,6 +139,30 @@ async function fetchData() {
   } finally {
     elements.loading.classList.add("hidden");
   }
+}
+
+function getAllFilmEntries() {
+  if (!state.data) return [];
+  return state.data.years.flatMap((yearBlock) =>
+    yearBlock.films.map((film) => ({ film, yearLabel: yearBlock.label, yearNumber: yearBlock.award_show_number }))
+  );
+}
+
+function suggestMovieOfTheDay() {
+  // If already loaded for today, use it
+  if (state.suggestedMovie) return state.suggestedMovie;
+  const entries = getAllFilmEntries().filter(({ film, yearLabel }) => {
+    const key = getFilmKey(film, yearLabel);
+    return !state.watched.has(key);
+  });
+  if (!entries.length) return null;
+  // Deterministic shuffle by date
+  const todaySeed = parseInt(getTodayKey().replace(/-/g, ""), 10);
+  const idx = todaySeed % entries.length;
+  const suggestion = entries[idx];
+  state.suggestedMovie = suggestion;
+  persistSuggestedMovie(suggestion);
+  return suggestion;
 }
 
 function findBestPictureCategory() {
@@ -201,10 +286,12 @@ async function renderFilms() {
           return `${label}${heads || people || "Winner"}`;
         })
         .filter(Boolean)
-        .join(" · ");
+        .join(" \u00b7 ");
       const detailBlock = detailText
         ? `<div class="film-detail">${detailText}</div>`
         : "";
+      const watched = state.watched.has(key);
+      const watchedBtn = `<button class="watched-btn" data-film-key="${key}" aria-pressed="${watched}">${watched ? "Watched" : "Mark as watched"}</button>`;
       return `
         <article class="film-card" data-film-key="${key}">
           <figure class="film-thumb" data-film-key="${key}" aria-hidden="true">
@@ -218,6 +305,7 @@ async function renderFilms() {
               <span>${film.nominations.length} nominations</span>
             </div>
             ${detailBlock}
+            <div class="film-actions">${watchedBtn}</div>
           </div>
         </article>
       `;
@@ -365,6 +453,16 @@ async function fetchFilmImage(title, yearLabel) {
 }
 
 function attachEvents() {
+    // Regenerate suggestion button
+    document.body.addEventListener("click", async (event) => {
+      if (event.target.classList.contains("suggested-regen-btn")) {
+        // Remove today's suggestion and pick a new one
+        const key = "oscars-suggested-movie-" + getTodayKey();
+        localStorage.removeItem(key);
+        state.suggestedMovie = null;
+        await renderSuggestedMovie();
+      }
+    });
   elements.yearSelect.addEventListener("change", (event) => {
     state.year = event.target.value;
     renderFilms();
@@ -384,6 +482,20 @@ function attachEvents() {
     renderFilms();
   });
   elements.filmList.addEventListener("click", async (event) => {
+    // Mark as watched button
+    if (event.target.classList.contains("watched-btn")) {
+      const key = event.target.dataset.filmKey;
+      if (state.watched.has(key)) {
+        state.watched.delete(key);
+      } else {
+        state.watched.add(key);
+      }
+      persistWatchedToStorage();
+      renderFilms();
+      await renderSuggestedMovie();
+      return;
+    }
+    // Open modal
     const card = event.target.closest(".film-card");
     if (!card) return;
     const entry = filmRegistry.get(card.dataset.filmKey);
@@ -395,14 +507,29 @@ function attachEvents() {
   elements.filmModal.addEventListener("click", (event) => {
     if (event.target === elements.filmModal) closeFilmModal();
   });
+  // Suggested movie watched button
+  document.body.addEventListener("click", async (event) => {
+    if (event.target.classList.contains("suggested-watched-btn")) {
+      const key = event.target.dataset.filmKey;
+      if (!state.watched.has(key)) {
+        state.watched.add(key);
+        persistWatchedToStorage();
+        renderFilms();
+        await renderSuggestedMovie();
+      }
+    }
+  });
 }
+
 
 async function init() {
   loadCacheFromStorage();
+  loadWatchedFromStorage();
   await fetchData();
   populateFilters();
   attachEvents();
   renderFilms();
+  await renderSuggestedMovie();
 }
 
 init();
